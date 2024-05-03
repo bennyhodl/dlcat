@@ -2,7 +2,7 @@ use bitcoin::{taproot::{TaprootBuilder, TaprootSpendInfo}, Address, Network, Scr
 use dlc_messages::contract_msgs::ContractDescriptor;
 use dlc::secp256k1_zkp::{Secp256k1, XOnlyPublicKey};
 
-fn build_taproot_leafs(outcome: ContractDescriptor, key: XOnlyPublicKey) -> TaprootSpendInfo {
+pub fn build_taproot_leafs(outcome: ContractDescriptor, key: XOnlyPublicKey) -> TaprootSpendInfo {
     let secp = Secp256k1::new();
     let mut builder = TaprootBuilder::new();
     match outcome {

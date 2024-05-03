@@ -6,7 +6,7 @@ use bitcoin::opcodes::all::{
     OP_2DUP, OP_CAT, OP_CHECKSIG, OP_DUP, OP_EQUALVERIFY, OP_FROMALTSTACK, OP_ROT, OP_SHA256,
     OP_SWAP, OP_TOALTSTACK,
 };
-use bitcoin::script::Builder;
+use bitcoin::script::{Builder, PushBytes, PushBytesBuf};
 use bitcoin::secp256k1::ThirtyTwoByteHash;
 use bitcoin::sighash::{Annex, TapSighash, TapSighashType};
 use bitcoin::taproot::{TapLeafHash, TaprootBuilder};
@@ -443,17 +443,22 @@ where
     })
 }
 
-pub(crate) fn vault_cancel_withdrawal() -> ScriptBuf {
+pub(crate) fn enforce_payout(payout_spk: ScriptBuf, amount: u64) -> ScriptBuf {
     let mut builder = Script::builder();
     // The witness program needs to have the signature components except the outputs and the pre_scriptpubkeys and pre_amounts,
     // followed by the output amount, then the script pubkey,
     // followed by the fee amount, then the fee-paying scriptpubkey
     // and finally the mangled signature
+
+    let payout_spk_bytes: PushBytesBuf = payout_spk.into_bytes().try_into().unwrap();
+
     builder = builder
         .push_opcode(OP_TOALTSTACK) // move pre-computed signature minus last byte to alt stack
         // .push_opcode(OP_TOALTSTACK) // push the fee-paying scriptpubkey to the alt stack
         // .push_opcode(OP_TOALTSTACK) // push the fee amount to the alt stack
-        .push_opcode(OP_2DUP) // make a second copy of the vault scriptpubkey and amount so we can check input = output
+        // .push_opcode(OP_2DUP) // make a second copy of the vault scriptpubkey and amount so we can check input = output
+        .push_slice(payout_spk_bytes.as_push_bytes()) // push the payout scriptpubkey
+        .push_slice(amount.to_le_bytes()) // push the payout amount
         .push_opcode(OP_TOALTSTACK) // push the first copy of the vault scriptpubkey to the alt stack
         .push_opcode(OP_TOALTSTACK) // push the first copy of the vault amount to the alt stack
         .push_opcode(OP_TOALTSTACK) // push the second copy of the vault scriptpubkey to the alt stack
