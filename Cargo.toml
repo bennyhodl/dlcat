@@ -6,3 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+dlc = { git = "https://github.com/p2pderivatives/rust-dlc.git", branch = "master" }
+dlc-messages = { git = "https://github.com/p2pderivatives/rust-dlc.git", branch = "master" }
+dlc-trie = { git = "https://github.com/p2pderivatives/rust-dlc.git", branch = "master" }
+bitcoin = "0.30.2"
+serde = "1.0"
+lightning = "0.0.121"
