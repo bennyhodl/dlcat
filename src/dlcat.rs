@@ -1,6 +1,9 @@
-use bitcoin::{taproot::{TaprootBuilder, TaprootSpendInfo}, Address, Network, ScriptBuf};
-use dlc_messages::contract_msgs::ContractDescriptor;
+use bitcoin::{
+    taproot::{TaprootBuilder, TaprootSpendInfo},
+    Address, Network, ScriptBuf,
+};
 use dlc::secp256k1_zkp::{Secp256k1, XOnlyPublicKey};
+use dlc_messages::contract_msgs::ContractDescriptor;
 
 pub fn build_taproot_leafs(outcome: ContractDescriptor, key: XOnlyPublicKey) -> TaprootSpendInfo {
     let secp = Secp256k1::new();
@@ -13,7 +16,7 @@ pub fn build_taproot_leafs(outcome: ContractDescriptor, key: XOnlyPublicKey) -> 
                 builder = builder.add_leaf(depth, ScriptBuf::new()).unwrap();
             }
         }
-        ContractDescriptor::NumericOutcomeContractDescriptor(_) => unimplemented!("not yet")
+        ContractDescriptor::NumericOutcomeContractDescriptor(_) => unimplemented!("not yet"),
     }
 
     builder.finalize(&secp, key).unwrap()

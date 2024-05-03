@@ -15,7 +15,9 @@ use bitcoin::{Address, Network, OutPoint, ScriptBuf, Transaction, TxIn, TxOut};
 use dlc::secp256k1_zkp::hashes::sha256;
 use dlc::secp256k1_zkp::rand::rngs::OsRng;
 use dlc::secp256k1_zkp::{KeyPair, Message, Secp256k1, SecretKey};
-use dlc_messages::contract_msgs::{ContractDescriptor, ContractOutcome, EnumeratedContractDescriptor};
+use dlc_messages::contract_msgs::{
+    ContractDescriptor, ContractOutcome, EnumeratedContractDescriptor,
+};
 use dlc_messages::oracle_msgs::{
     EnumEventDescriptor, EventDescriptor, OracleAnnouncement, OracleAttestation, OracleEvent,
 };
@@ -75,16 +77,16 @@ pub fn create_dummy_announcement() -> (OracleAnnouncement, OracleAttestation) {
 pub fn one_bit_contract_descriptor() -> ContractDescriptor {
     let yes = ContractOutcome {
         outcome: "Yes".into(),
-        offer_payout: 100_000
+        offer_payout: 100_000,
     };
 
     let no = ContractOutcome {
         outcome: "No".to_string(),
-        offer_payout: 100_000
+        offer_payout: 100_000,
     };
 
     let enum_descriptor = EnumeratedContractDescriptor {
-        payouts: vec![yes, no]
+        payouts: vec![yes, no],
     };
 
     ContractDescriptor::EnumeratedContractDescriptor(enum_descriptor)
@@ -158,7 +160,9 @@ pub(crate) fn create_spending_tx(
     let mangled_signature: [u8; 63] = computed_signature[0..63].try_into().unwrap(); // chop off the last byte, so we can provide the 0x00 and 0x01 bytes on the stack
     vault_txin.witness.push(mangled_signature);
 
-    vault_txin.witness.push(enforce_payout_spk.clone().to_bytes());
+    vault_txin
+        .witness
+        .push(enforce_payout_spk.clone().to_bytes());
 
     // let spend_info = build_taproot_leafs(outcomes, create_nums_key()); todo use this later, for now no DLC part
 
@@ -200,28 +204,32 @@ pub fn create_nums_key() -> XOnlyPublicKey {
     XOnlyPublicKey::from_slice(point.to_xonly_bytes().as_slice()).unwrap()
 }
 
-
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-    use bitcoin::consensus::serialize;
     use super::*;
+    use bitcoin::consensus::serialize;
+    use std::str::FromStr;
 
     #[test]
     fn test_create_address() {
-        let bitcoind_address = Address::from_str("tb1qe65apqqe3zq7qzaw45zjr4d7fenqdymhr3gums").unwrap();
+        let bitcoind_address =
+            Address::from_str("tb1qe65apqqe3zq7qzaw45zjr4d7fenqdymhr3gums").unwrap();
 
-        let contract_address = create_address(bitcoind_address.payload.script_pubkey(), 100_000);
+        let value = 100_000;
+        let contract_address = create_address(bitcoind_address.payload.script_pubkey(), value);
         println!("{}", contract_address);
 
-        let outpoint = OutPoint::from_str("e6396705587c869865c364028742bba129bc3d9c32309d818c382e75004b806a:0").unwrap();
+        let outpoint = OutPoint::from_str(
+            "e6396705587c869865c364028742bba129bc3d9c32309d818c382e75004b806a:0",
+        )
+        .unwrap();
         let output = TxOut {
             script_pubkey: contract_address.payload.script_pubkey(),
-            value: 100_000,
+            value,
         };
-        let spending_tx = create_spending_tx(outpoint,output, bitcoind_address.payload.script_pubkey()).unwrap();
+        let spending_tx =
+            create_spending_tx(outpoint, output, bitcoind_address.payload.script_pubkey()).unwrap();
 
         println!("{}", hex::encode(serialize(&spending_tx).to_vec()));
-
     }
 }
