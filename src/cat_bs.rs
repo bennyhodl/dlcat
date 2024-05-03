@@ -451,8 +451,8 @@ pub(crate) fn vault_cancel_withdrawal() -> ScriptBuf {
     // and finally the mangled signature
     builder = builder
         .push_opcode(OP_TOALTSTACK) // move pre-computed signature minus last byte to alt stack
-        .push_opcode(OP_TOALTSTACK) // push the fee-paying scriptpubkey to the alt stack
-        .push_opcode(OP_TOALTSTACK) // push the fee amount to the alt stack
+        // .push_opcode(OP_TOALTSTACK) // push the fee-paying scriptpubkey to the alt stack
+        // .push_opcode(OP_TOALTSTACK) // push the fee amount to the alt stack
         .push_opcode(OP_2DUP) // make a second copy of the vault scriptpubkey and amount so we can check input = output
         .push_opcode(OP_TOALTSTACK) // push the first copy of the vault scriptpubkey to the alt stack
         .push_opcode(OP_TOALTSTACK) // push the first copy of the vault amount to the alt stack
@@ -472,19 +472,19 @@ pub(crate) fn vault_cancel_withdrawal() -> ScriptBuf {
         .push_opcode(OP_CAT) // prev sequences
         .push_opcode(OP_FROMALTSTACK) // get the other copy of the vault amount
         .push_opcode(OP_FROMALTSTACK) // get the other copy of the vault scriptpubkey
-        .push_opcode(OP_FROMALTSTACK) // get the fee amount
-        .push_opcode(OP_FROMALTSTACK) // get the fee-paying scriptpubkey
-        .push_opcode(OP_SWAP) // move the fee-paying scriptpubkey below the fee amount
-        .push_opcode(OP_TOALTSTACK) // move fee amount to alt stack
-        .push_opcode(OP_CAT) // cat the vault scriptpubkey fee-paying scriptpubkey
+        // .push_opcode(OP_FROMALTSTACK) // get the fee amount
+        // .push_opcode(OP_FROMALTSTACK) // get the fee-paying scriptpubkey
+        // .push_opcode(OP_SWAP) // move the fee-paying scriptpubkey below the fee amount
+        // .push_opcode(OP_TOALTSTACK) // move fee amount to alt stack
+        // .push_opcode(OP_CAT) // cat the vault scriptpubkey fee-paying scriptpubkey
         .push_opcode(OP_SWAP) // move the vault amount to the top of the stack
         .push_opcode(OP_TOALTSTACK) // move the vault amount to the alt stack
         .push_opcode(OP_SHA256) // hash the scriptpubkeys, should now be consensus encoding
         .push_opcode(OP_SWAP) // move the hashed encoded scriptpubkeys below our working sigmsg
         .push_opcode(OP_CAT) // prev scriptpubkeys
         .push_opcode(OP_FROMALTSTACK) // get the vault amount
-        .push_opcode(OP_FROMALTSTACK) // get the fee amount
-        .push_opcode(OP_CAT) // cat the vault amount and the fee amount
+        // .push_opcode(OP_FROMALTSTACK) // get the fee amount
+        // .push_opcode(OP_CAT) // cat the vault amount and the fee amount
         .push_opcode(OP_SHA256) // hash the amounts
         .push_opcode(OP_SWAP) // move the hashed encoded amounts below our working sigmsg
         .push_opcode(OP_CAT) // prev amounts
