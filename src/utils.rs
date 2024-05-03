@@ -1,3 +1,4 @@
+use bitcoin::{ScriptBuf, TxOut};
 use dlc::secp256k1_zkp::hashes::sha256;
 use dlc::secp256k1_zkp::rand::rngs::OsRng;
 use dlc::secp256k1_zkp::{KeyPair, Message, Secp256k1, SecretKey};
