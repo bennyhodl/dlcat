@@ -1,7 +1,7 @@
-use bitcoin::{ScriptBuf, TxOut};
 use dlc::secp256k1_zkp::hashes::sha256;
 use dlc::secp256k1_zkp::rand::rngs::OsRng;
 use dlc::secp256k1_zkp::{KeyPair, Message, Secp256k1, SecretKey};
+use dlc_messages::contract_msgs::{ContractDescriptor, ContractOutcome, EnumeratedContractDescriptor};
 use dlc_messages::oracle_msgs::{
     EnumEventDescriptor, EventDescriptor, OracleAnnouncement, OracleAttestation, OracleEvent,
 };
@@ -53,4 +53,22 @@ pub fn create_dummy_announcement() -> (OracleAnnouncement, OracleAttestation) {
     };
 
     (ann, att)
+}
+
+pub fn one_bit_contract_descriptor() -> ContractDescriptor {
+    let yes = ContractOutcome {
+        outcome: "Yes".into(),
+        offer_payout: 100_000
+    };
+
+    let no = ContractOutcome {
+        outcome: "No".to_string(),
+        offer_payout: 100_000
+    };
+
+    let enum_descriptor = EnumeratedContractDescriptor {
+        payouts: vec![yes, no]
+    };
+
+    ContractDescriptor::EnumeratedContractDescriptor(enum_descriptor)
 }
