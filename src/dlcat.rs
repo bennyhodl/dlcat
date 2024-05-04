@@ -5,30 +5,39 @@ use bitcoin::{
     taproot::{TaprootBuilder, TaprootSpendInfo},
     Address, Network, ScriptBuf,
 };
-use dlc::get_adaptor_point_from_oracle_info;
-use dlc::secp256k1_zkp::{Secp256k1, XOnlyPublicKey, Message};
-use dlc_messages::contract_msgs::ContractDescriptor;
-use dlc::OracleInfo;
 use bitcoin_hashes::Hash;
+use dlc::get_adaptor_point_from_oracle_info;
+use dlc::secp256k1_zkp::{Message, Secp256k1, XOnlyPublicKey};
+use dlc::OracleInfo;
+use dlc_messages::contract_msgs::ContractDescriptor;
 
-pub fn build_taproot_leafs(outcome: ContractDescriptor, key: XOnlyPublicKey, oracle_infos: &[OracleInfo]) -> TaprootSpendInfo {
+pub fn build_taproot_leafs(
+    outcome: ContractDescriptor,
+    key: XOnlyPublicKey,
+    oracle_infos: &[OracleInfo],
+) -> TaprootSpendInfo {
     let secp = Secp256k1::new();
 
     let mut builder = TaprootBuilder::new();
-    
+
     match outcome {
         ContractDescriptor::EnumeratedContractDescriptor(enum_descriptor) => {
+            // todo order better by common occurrence
             for (index, payout) in enum_descriptor.payouts.iter().enumerate() {
                 let depth = (index / 2) as u8;
-                let msg = Message::from_hashed_data::<dlc::secp256k1_zkp::hashes::sha256::Hash>(payout.outcome.as_bytes());
-                let adaptor_point = get_adaptor_point_from_oracle_info(&secp, oracle_infos, &[vec![msg]]).unwrap();
-                let adaptor_point_bytes: PushBytesBuf = adaptor_point.serialize().try_into().unwrap();
+                let msg = Message::from_hashed_data::<dlc::secp256k1_zkp::hashes::sha256::Hash>(
+                    payout.outcome.as_bytes(),
+                );
+                let adaptor_point =
+                    get_adaptor_point_from_oracle_info(&secp, oracle_infos, &[vec![msg]]).unwrap();
+                let adaptor_point_bytes: PushBytesBuf =
+                    adaptor_point.serialize().try_into().unwrap();
 
                 let mut script = ScriptBuf::new();
                 let ctv_hash = calc_ctv_hash(&[]); // todo correct outputs
                 script.push_slice(ctv_hash);
                 script.push_opcode(OP_NOP4);
-                script.push_slice(adaptor_point_bytes); //todo calculate this
+                script.push_slice(adaptor_point_bytes);
                 script.push_opcode(OP_CHECKSIGVERIFY);
 
                 builder = builder.add_leaf(depth, script).unwrap();

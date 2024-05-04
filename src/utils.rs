@@ -120,19 +120,31 @@ pub fn calc_ctv_hash(outputs: &[TxOut]) -> [u8; 32] {
 pub(crate) fn create_ctv_spending_tx(
     outpoint: OutPoint,
     output: TxOut,
-    // outcomes: ContractDescriptor,
+    oracle_attestation: OracleAttestation,
 ) -> anyhow::Result<Transaction> {
+    let secp = Secp256k1::new();
+
     let mut vault_txin = TxIn {
         previous_output: outpoint,
         ..Default::default()
     };
 
-    let mut contract_address = ScriptBuf::new();
-    let ctv = calc_ctv_hash(&[output.clone()]);
-    contract_address.push_slice(ctv);
-    contract_address.push_opcode(OP_NOP4);
+    let priv_key = oracle_attestation; // get private key from oracle attestation
 
-    vault_txin.witness.push(contract_address.as_bytes());
+    // todo calculate correct txn signature hash
+    let signature = secp.sign_schnorr_no_aux_rand(&[], &priv_key);
+
+    vault_txin.witness.push(signature);
+
+    let builder = build_taproot_leafs((), (), &[]);
+
+    let outcome = (); // todo calculate corresponding script for oracle outcome
+    vault_txin.witness.push(
+        builder
+            .control_block(&(outcome), LeafVersion::TapScript))
+            .expect("control block should work")
+            .serialize(),
+    );
 
     let txn = Transaction {
         lock_time: LockTime::ZERO,
