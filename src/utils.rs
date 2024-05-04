@@ -8,10 +8,11 @@ use bitcoin::absolute::LockTime;
 use bitcoin::consensus::Encodable;
 use bitcoin::hashes::Hash;
 use bitcoin::key::XOnlyPublicKey;
+use bitcoin::opcodes::all::OP_NOP4;
 use bitcoin::secp256k1::ThirtyTwoByteHash;
 use bitcoin::sighash::TapSighashType;
 use bitcoin::taproot::{LeafVersion, TapLeafHash, TaprootBuilder};
-use bitcoin::{Address, Network, OutPoint, ScriptBuf, Transaction, TxIn, TxOut};
+use bitcoin::{Address, Network, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness};
 use dlc::secp256k1_zkp::hashes::sha256;
 use dlc::secp256k1_zkp::rand::rngs::OsRng;
 use dlc::secp256k1_zkp::{KeyPair, Message, Secp256k1, SecretKey};
@@ -90,6 +91,57 @@ pub fn one_bit_contract_descriptor() -> ContractDescriptor {
     };
 
     ContractDescriptor::EnumeratedContractDescriptor(enum_descriptor)
+}
+
+pub fn calc_ctv_hash(outputs: &[TxOut]) -> [u8; 32] {
+    let mut buffer = Vec::new();
+    buffer.extend(2_i32.to_le_bytes()); // version
+    buffer.extend(0_i32.to_le_bytes()); // locktime
+    buffer.extend(1_u32.to_le_bytes()); // inupts len
+
+    let seq = sha256::Hash::hash(&Sequence::default().0.to_le_bytes());
+    buffer.extend(seq.into_32()); // sequences
+
+    let outputs_len = outputs.len() as u32;
+    buffer.extend(outputs_len.to_le_bytes()); // outputs len
+
+    let mut output_bytes: Vec<u8> = Vec::new();
+    for o in outputs {
+        o.consensus_encode(&mut output_bytes).unwrap();
+    }
+    buffer.extend(sha256::Hash::hash(&output_bytes).into_32()); // outputs hash
+
+    buffer.extend(0_u32.to_le_bytes()); // inputs index
+
+    let hash = sha256::Hash::hash(&buffer);
+    hash.into_32()
+}
+
+pub(crate) fn create_ctv_spending_tx(
+    outpoint: OutPoint,
+    output: TxOut,
+    // outcomes: ContractDescriptor,
+) -> anyhow::Result<Transaction> {
+    let mut vault_txin = TxIn {
+        previous_output: outpoint,
+        ..Default::default()
+    };
+
+    let mut contract_address = ScriptBuf::new();
+    let ctv = calc_ctv_hash(&[output.clone()]);
+    contract_address.push_slice(ctv);
+    contract_address.push_opcode(OP_NOP4);
+
+    vault_txin.witness.push(contract_address.as_bytes());
+
+    let txn = Transaction {
+        lock_time: LockTime::ZERO,
+        version: 2,
+        input: vec![vault_txin],
+        output: vec![output],
+    };
+
+    Ok(txn)
 }
 
 pub(crate) fn create_spending_tx(
@@ -208,6 +260,7 @@ pub fn create_nums_key() -> XOnlyPublicKey {
 mod tests {
     use super::*;
     use bitcoin::consensus::serialize;
+    use bitcoin::opcodes::all::OP_NOP4;
     use std::str::FromStr;
 
     #[test]
@@ -216,19 +269,22 @@ mod tests {
             Address::from_str("tb1qe65apqqe3zq7qzaw45zjr4d7fenqdymhr3gums").unwrap();
 
         let value = 100_000;
-        let contract_address = create_address(bitcoind_address.payload.script_pubkey(), value);
+        let out = TxOut {
+            script_pubkey: bitcoind_address.payload.script_pubkey(),
+            value,
+        };
+        let mut contract_address = ScriptBuf::new();
+        let ctv = calc_ctv_hash(&[out.clone()]);
+        contract_address.push_slice(ctv);
+        contract_address.push_opcode(OP_NOP4);
+        let contract_address = Address::p2wsh(contract_address.as_script(), Network::Signet);
         println!("{}", contract_address);
 
         let outpoint = OutPoint::from_str(
-            "e6396705587c869865c364028742bba129bc3d9c32309d818c382e75004b806a:0",
+            "8adfd002860b1205228d3d9d7c169f2d982fad655f4921f3d67bf00e9b134f25:0",
         )
         .unwrap();
-        let output = TxOut {
-            script_pubkey: contract_address.payload.script_pubkey(),
-            value,
-        };
-        let spending_tx =
-            create_spending_tx(outpoint, output, bitcoind_address.payload.script_pubkey()).unwrap();
+        let spending_tx = create_ctv_spending_tx(outpoint, out).unwrap();
 
         println!("{}", hex::encode(serialize(&spending_tx).to_vec()));
     }

@@ -1,3 +1,4 @@
+use crate::utils::calc_ctv_hash;
 use bitcoin::opcodes::all::{OP_CHECKSIGVERIFY, OP_NOP4};
 use bitcoin::{
     taproot::{TaprootBuilder, TaprootSpendInfo},
@@ -14,7 +15,8 @@ pub fn build_taproot_leafs(outcome: ContractDescriptor, key: XOnlyPublicKey) -> 
             for (index, _) in enum_descriptor.payouts.iter().enumerate() {
                 let depth = (index / 2) as u8;
                 let mut script = ScriptBuf::new();
-                script.push_slice([]); //todo calculate this
+                let ctv_hash = calc_ctv_hash(&[]); // todo correct outputs
+                script.push_slice(ctv_hash);
                 script.push_opcode(OP_NOP4);
                 script.push_slice([]); //todo calculate this
                 script.push_opcode(OP_CHECKSIGVERIFY);
