@@ -1,3 +1,4 @@
+use bitcoin::opcodes::all::{OP_CHECKSIGVERIFY, OP_NOP4};
 use bitcoin::{
     taproot::{TaprootBuilder, TaprootSpendInfo},
     Address, Network, ScriptBuf,
@@ -12,8 +13,13 @@ pub fn build_taproot_leafs(outcome: ContractDescriptor, key: XOnlyPublicKey) -> 
         ContractDescriptor::EnumeratedContractDescriptor(enum_descriptor) => {
             for (index, _) in enum_descriptor.payouts.iter().enumerate() {
                 let depth = (index / 2) as u8;
-                // let script = <cat stuff>
-                builder = builder.add_leaf(depth, ScriptBuf::new()).unwrap();
+                let mut script = ScriptBuf::new();
+                script.push_slice([]); //todo calculate this
+                script.push_opcode(OP_NOP4);
+                script.push_slice([]); //todo calculate this
+                script.push_opcode(OP_CHECKSIGVERIFY);
+
+                builder = builder.add_leaf(depth, script).unwrap();
             }
         }
         ContractDescriptor::NumericOutcomeContractDescriptor(_) => unimplemented!("not yet"),
