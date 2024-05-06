@@ -450,40 +450,44 @@ pub(crate) fn enforce_payout(payout_spk: ScriptBuf, amount: u64) -> ScriptBuf {
     // followed by the fee amount, then the fee-paying scriptpubkey
     // and finally the mangled signature
 
-    let payout_spk_bytes: PushBytesBuf = payout_spk.into_bytes().try_into().unwrap();
+    let output = TxOut {
+        script_pubkey: payout_spk,
+        value: amount,
+    };
+    let mut outputs = Vec::new();
+    let mut buffer = Vec::new();
+    output.consensus_encode(&mut buffer).unwrap();
+    let hash = sha256::Hash::hash(&buffer);
+    hash.consensus_encode(&mut outputs).unwrap();
+    println!("outputs: {:?}", hex::encode(&outputs));
 
     builder = builder
         .push_opcode(OP_TOALTSTACK) // move pre-computed signature minus last byte to alt stack
         // .push_opcode(OP_TOALTSTACK) // push the fee-paying scriptpubkey to the alt stack
         // .push_opcode(OP_TOALTSTACK) // push the fee amount to the alt stack
         // .push_opcode(OP_2DUP) // make a second copy of the vault scriptpubkey and amount so we can check input = output
-        .push_slice(payout_spk_bytes.as_push_bytes()) // push the payout scriptpubkey
-        .push_slice(amount.to_le_bytes()) // push the payout amount
-        .push_opcode(OP_TOALTSTACK) // push the first copy of the vault scriptpubkey to the alt stack
-        .push_opcode(OP_TOALTSTACK) // push the first copy of the vault amount to the alt stack
-        .push_opcode(OP_TOALTSTACK) // push the second copy of the vault scriptpubkey to the alt stack
-        .push_opcode(OP_TOALTSTACK) // push the second copy of the vault amount to the alt stack
+        // .push_opcode(OP_TOALTSTACK) // push the second copy of the vault scriptpubkey to the alt stack
+        // .push_opcode(OP_TOALTSTACK) // push the second copy of the vault amount to the alt stack
+        .push_slice(hash.into_32()) // push the payout output hash
+        .push_opcode(OP_TOALTSTACK) // push the payout output hash to the alt stack
         // start with encoded leaf hash
         .push_opcode(OP_CAT) // encoded leaf hash
         .push_opcode(OP_CAT) // encoded leaf hash
         .push_opcode(OP_CAT) // input index
         .push_opcode(OP_CAT) // spend type
-        .push_opcode(OP_FROMALTSTACK) // get the output amount
-        .push_opcode(OP_FROMALTSTACK) // get the second copy of the scriptpubkey
-        .push_opcode(OP_CAT) // cat the output amount and the second copy of the scriptpubkey
-        .push_opcode(OP_SHA256) // hash the output
+        .push_opcode(OP_FROMALTSTACK) // get the output hash
         .push_opcode(OP_SWAP) // move the hashed encoded outputs below our working sigmsg
         .push_opcode(OP_CAT) // outputs
         .push_opcode(OP_CAT) // prev sequences
-        .push_opcode(OP_FROMALTSTACK) // get the other copy of the vault amount
-        .push_opcode(OP_FROMALTSTACK) // get the other copy of the vault scriptpubkey
+        // .push_opcode(OP_FROMALTSTACK) // get the other copy of the vault amount
+        // .push_opcode(OP_FROMALTSTACK) // get the other copy of the vault scriptpubkey
         // .push_opcode(OP_FROMALTSTACK) // get the fee amount
         // .push_opcode(OP_FROMALTSTACK) // get the fee-paying scriptpubkey
         // .push_opcode(OP_SWAP) // move the fee-paying scriptpubkey below the fee amount
         // .push_opcode(OP_TOALTSTACK) // move fee amount to alt stack
         // .push_opcode(OP_CAT) // cat the vault scriptpubkey fee-paying scriptpubkey
-        .push_opcode(OP_SWAP) // move the vault amount to the top of the stack
-        .push_opcode(OP_TOALTSTACK) // move the vault amount to the alt stack
+        // .push_opcode(OP_SWAP) // move the vault amount to the top of the stack
+        // .push_opcode(OP_TOALTSTACK) // move the vault amount to the alt stack
         .push_opcode(OP_SHA256) // hash the scriptpubkeys, should now be consensus encoding
         .push_opcode(OP_SWAP) // move the hashed encoded scriptpubkeys below our working sigmsg
         .push_opcode(OP_CAT) // prev scriptpubkeys

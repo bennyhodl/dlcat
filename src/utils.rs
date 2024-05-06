@@ -220,7 +220,7 @@ mod tests {
         println!("{}", contract_address);
 
         let outpoint = OutPoint::from_str(
-            "e6396705587c869865c364028742bba129bc3d9c32309d818c382e75004b806a:0",
+            "d2e69ddbc4467817ff6bd53cb171614e52907e7189f9d25085883ae3418b618c:1",
         )
         .unwrap();
         let output = TxOut {
