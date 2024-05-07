@@ -169,10 +169,10 @@ pub(crate) fn op_cat_dlc_payout(payout_spk: &ScriptBuf, amount: u64) -> ScriptBu
         // .push_opcode(OP_TOALTSTACK) // push the fee-paying scriptpubkey to the alt stack
         // .push_opcode(OP_TOALTSTACK) // push the fee amount to the alt stack
         // .push_opcode(OP_2DUP) // make a second copy of the vault scriptpubkey and amount so we can check input = output
-        .push_slice(payout_spk_bytes.as_push_bytes()) // push the payout scriptpubkey
-        .push_slice(amount.to_le_bytes()) // push the payout amount
         .push_opcode(OP_TOALTSTACK) // push the first copy of the vault scriptpubkey to the alt stack
         .push_opcode(OP_TOALTSTACK) // push the first copy of the vault amount to the alt stack
+        .push_slice(payout_spk_bytes.as_push_bytes()) // push the payout scriptpubkey
+        .push_slice(amount.to_le_bytes()) // push the payout amount
         .push_opcode(OP_TOALTSTACK) // push the second copy of the vault scriptpubkey to the alt stack
         .push_opcode(OP_TOALTSTACK) // push the second copy of the vault amount to the alt stack
         // start with encoded leaf hash
