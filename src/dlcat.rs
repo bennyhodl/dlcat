@@ -1,4 +1,4 @@
-use crate::op_cat::{create_cat_spending_tx, op_cat_dlc_payout};
+use crate::op_cat::op_cat_dlc_payout;
 use crate::op_ctv::calc_ctv_hash;
 use bitcoin::opcodes::all::{OP_CHECKSIGVERIFY, OP_NOP4};
 use bitcoin::script::PushBytesBuf;
@@ -13,6 +13,7 @@ use dlc_messages::contract_msgs::ContractDescriptor;
 
 pub fn build_cat_taproot_leafs(
     outcome: ContractDescriptor,
+    script_pubkey: ScriptBuf,
     key: XOnlyPublicKey,
     oracle_infos: &[OracleInfo],
 ) -> TaprootSpendInfo {
@@ -28,7 +29,8 @@ pub fn build_cat_taproot_leafs(
                 let msg = Message::from_hashed_data::<dlc::secp256k1_zkp::hashes::sha256::Hash>(
                     payout.outcome.as_bytes(),
                 );
-                // builder = builder.add_leaf(depth, script).unwrap();
+                let cat_script = op_cat_dlc_payout(&script_pubkey, payout.offer_payout);
+                builder = builder.add_leaf(depth, cat_script).unwrap();
             }
         }
         ContractDescriptor::NumericOutcomeContractDescriptor(_) => unimplemented!("not yet"),

@@ -278,6 +278,7 @@ pub(crate) fn get_sigmsg_components<S: Into<TapLeafHash>>(
     Ok(components)
 }
 
+// Append the sigmsg of the outcome?
 pub(crate) fn compute_signature_from_components(
     components: &[Vec<u8>],
 ) -> anyhow::Result<[u8; 64]> {

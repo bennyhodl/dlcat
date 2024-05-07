@@ -86,7 +86,7 @@ pub(crate) fn create_cat_spending_tx(
         ..Default::default()
     };
 
-    let enforce_payout_spk = op_cat_dlc_payout(output.script_pubkey.clone(), output.value);
+    let enforce_payout_spk = op_cat_dlc_payout(&output.script_pubkey, output.value);
 
     let leaf_hash = TapLeafHash::from_script(&enforce_payout_spk, LeafVersion::TapScript);
     let contract_components =
@@ -130,17 +130,17 @@ pub(crate) fn create_cat_spending_tx(
         .push(enforce_payout_spk.clone().to_bytes());
 
     // Build the taproot tree of outcomes
-    let spend_info = build_cat_taproot_leafs(outcomes, create_nums_key(), oracle_infos); // todo use this later, for now no DLC part
+    let spend_info = build_cat_taproot_leafs(outcomes, output.script_pubkey.clone(), create_nums_key(), oracle_infos); // todo use this later, for now no DLC part
 
-    let secp = Secp256k1::new();
-    let builder = TaprootBuilder::new()
-        .add_leaf(0, enforce_payout_spk.clone())
-        .unwrap()
-        .finalize(&secp, create_nums_key())
-        .unwrap();
+    // let secp = Secp256k1::new();
+    // let builder = TaprootBuilder::new()
+    //     .add_leaf(0, enforce_payout_spk.clone())
+    //     .unwrap()
+    //     .finalize(&secp, create_nums_key())
+    //     .unwrap();
 
     collateral_txin.witness.push(
-        builder
+        spend_info
             .control_block(&(enforce_payout_spk.clone(), LeafVersion::TapScript))
             .expect("control block should work")
             .serialize(),
@@ -150,19 +150,19 @@ pub(crate) fn create_cat_spending_tx(
     Ok(txn)
 }
 
-// pub(crate) struct ContractComponents {
-//     pub(crate) transaction: Transaction,
-//     pub(crate) signature_components: Vec<Vec<u8>>,
-// }
+pub(crate) struct ContractComponents {
+    pub(crate) transaction: Transaction,
+    pub(crate) signature_components: Vec<Vec<u8>>,
+}
 
-pub(crate) fn op_cat_dlc_payout(payout_spk: ScriptBuf, amount: u64) -> ScriptBuf {
+pub(crate) fn op_cat_dlc_payout(payout_spk: &ScriptBuf, amount: u64) -> ScriptBuf {
     let mut builder = Script::builder();
     // The witness program needs to have the signature components except the outputs and the pre_scriptpubkeys and pre_amounts,
     // followed by the output amount, then the script pubkey,
     // followed by the fee amount, then the fee-paying scriptpubkey
     // and finally the mangled signature
 
-    let payout_spk_bytes: PushBytesBuf = payout_spk.into_bytes().try_into().unwrap();
+    let payout_spk_bytes: PushBytesBuf = payout_spk.clone().into_bytes().try_into().unwrap();
 
     builder = builder
         .push_opcode(OP_TOALTSTACK) // move pre-computed signature minus last byte to alt stack

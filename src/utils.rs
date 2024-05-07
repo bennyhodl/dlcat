@@ -84,7 +84,7 @@ pub fn one_bit_contract_descriptor() -> ContractDescriptor {
 }
 
 pub fn create_address(payout_spk: ScriptBuf, amount: u64) -> Address {
-    let enforce_payout_spk = op_cat_dlc_payout(payout_spk, amount - 10_000);
+    let enforce_payout_spk = op_cat_dlc_payout(&payout_spk, amount - 10_000);
 
     let secp = Secp256k1::new();
     let builder = TaprootBuilder::new()

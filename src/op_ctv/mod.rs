@@ -1,19 +1,11 @@
-use crate::op_cat::sigops::{
-    compute_signature_from_components, get_sigmsg_components, grind_transaction, GrindField,
-};
-use crate::op_cat::{op_cat_dlc_payout, TxCommitmentSpec};
-use crate::utils::create_nums_key;
 use bitcoin::absolute::LockTime;
 use bitcoin::consensus::Encodable;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::ThirtyTwoByteHash;
-use bitcoin::sighash::TapSighashType;
-use bitcoin::taproot::{LeafVersion, TapLeafHash, TaprootBuilder};
-use bitcoin::{OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut};
+use bitcoin::{OutPoint, Sequence, Transaction, TxIn, TxOut};
 use dlc::secp256k1_zkp::hashes::sha256;
 use dlc::secp256k1_zkp::Secp256k1;
 use dlc_messages::oracle_msgs::OracleAttestation;
-use log::debug;
 
 pub fn calc_ctv_hash(outputs: &[TxOut]) -> [u8; 32] {
     let mut buffer = Vec::new();
@@ -51,7 +43,7 @@ pub(crate) fn create_ctv_spending_tx(
         ..Default::default()
     };
 
-    // let priv_key = oracle_attestation; // get private key from oracle attestation
+    // let priv_key = oracle_attestation.signature; // get private key from oracle attestation
     //
     // // todo calculate correct txn signature hash
     // let signature = secp.sign_schnorr_no_aux_rand(&[], &priv_key);
@@ -84,7 +76,7 @@ mod tests {
     use crate::utils::create_dummy_announcement;
     use bitcoin::consensus::serialize;
     use bitcoin::opcodes::all::OP_NOP4;
-    use bitcoin::{Address, Network};
+    use bitcoin::{Address, Network, ScriptBuf};
     use std::str::FromStr;
 
     #[test]
