@@ -61,6 +61,10 @@ pub fn build_ctv_taproot_leafs(
                 let adaptor_point_bytes: PushBytesBuf =
                     adaptor_point.serialize().try_into().unwrap();
 
+                // Recreate creating this transaction so we can grab specific ones
+                // contract outcomes of the descriptor
+                // give scripPubKey
+
                 let mut script = ScriptBuf::new();
                 let ctv_hash = calc_ctv_hash(&[]); // todo correct outputs
                 script.push_slice(ctv_hash);

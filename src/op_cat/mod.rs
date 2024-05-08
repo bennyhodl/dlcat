@@ -130,7 +130,12 @@ pub(crate) fn create_cat_spending_tx(
         .push(enforce_payout_spk.clone().to_bytes());
 
     // Build the taproot tree of outcomes
-    let spend_info = build_cat_taproot_leafs(outcomes, output.script_pubkey.clone(), create_nums_key(), oracle_infos); // todo use this later, for now no DLC part
+    let spend_info = build_cat_taproot_leafs(
+        outcomes,
+        output.script_pubkey.clone(),
+        create_nums_key(),
+        oracle_infos,
+    ); // todo use this later, for now no DLC part
 
     // let secp = Secp256k1::new();
     // let builder = TaprootBuilder::new()

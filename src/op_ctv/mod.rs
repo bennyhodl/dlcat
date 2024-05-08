@@ -1,11 +1,20 @@
 use bitcoin::absolute::LockTime;
 use bitcoin::consensus::Encodable;
 use bitcoin::hashes::Hash;
+use bitcoin::psbt::Prevouts;
 use bitcoin::secp256k1::ThirtyTwoByteHash;
-use bitcoin::{OutPoint, Sequence, Transaction, TxIn, TxOut};
+use bitcoin::sighash::{SighashCache, TapSighashType};
+use bitcoin::taproot::{LeafVersion, TapLeafHash};
+use bitcoin::{OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut};
 use dlc::secp256k1_zkp::hashes::sha256;
 use dlc::secp256k1_zkp::Secp256k1;
+use dlc::OracleInfo;
+use dlc_messages::contract_msgs::{ContractDescriptor, ContractInfo};
 use dlc_messages::oracle_msgs::OracleAttestation;
+use lightning::util::ser::Writeable;
+
+use crate::build_ctv_taproot_leafs;
+use crate::utils::signatures_to_secret;
 
 pub fn calc_ctv_hash(outputs: &[TxOut]) -> [u8; 32] {
     let mut buffer = Vec::new();
@@ -33,41 +42,77 @@ pub fn calc_ctv_hash(outputs: &[TxOut]) -> [u8; 32] {
 
 pub(crate) fn create_ctv_spending_tx(
     outpoint: OutPoint,
+    previous_output: TxOut,
     output: TxOut,
     oracle_attestation: OracleAttestation,
+    contract_descriptor: ContractDescriptor,
+    oracle_info: OracleInfo
 ) -> anyhow::Result<Transaction> {
     let secp = Secp256k1::new();
 
     let mut collateral_txin = TxIn {
-        previous_output: outpoint,
+        previous_output: outpoint.clone(),
         ..Default::default()
     };
-
-    // let priv_key = oracle_attestation.signature; // get private key from oracle attestation
-    //
-    // // todo calculate correct txn signature hash
-    // let signature = secp.sign_schnorr_no_aux_rand(&[], &priv_key);
-    //
-    // vault_txin.witness.push(signature);
-    //
-    // let builder = build_taproot_leafs((), (), &[]);
-    //
-    // let outcome = (); // todo calculate corresponding script for oracle outcome
-    // vault_txin.witness.push(
-    //     builder
-    //         .control_block(&(outcome, LeafVersion::TapScript))
-    //         .expect("control block should work")
-    //         .serialize(),
-    // );
 
     let txn = Transaction {
         lock_time: LockTime::ZERO,
         version: 2,
-        input: vec![collateral_txin],
-        output: vec![output],
+        input: vec![collateral_txin.clone()],
+        output: vec![output.clone()],
     };
 
-    Ok(txn)
+    // let priv_key = oracle_attestation; // get private key from oracle attestation
+    let secret_key = signatures_to_secret(&[oracle_attestation.signatures]);
+    // Rust-bitcoin get something to signature
+    // Could be better handled
+    // todo calculate correct txn signature hash
+
+    // pass the signature in the witness
+
+    let builder = build_ctv_taproot_leafs(
+        contract_descriptor,
+        oracle_attestation.oracle_public_key,
+        &[oracle_info],
+    );
+
+    let mut sighash_cache = SighashCache::new(&txn);
+    // Pass the script from builder for outcome.
+    let sighash = sighash_cache
+        .taproot_script_spend_signature_hash(
+            0,
+            &Prevouts::All(&[&previous_output]),
+            TapLeafHash::from_script(
+                ScriptBuf::new().as_script(), /*going to be script for given outcome*/
+                LeafVersion::TapScript,
+            ),
+            TapSighashType::Default,
+        )
+        .unwrap();
+
+    let sighash_message =
+        dlc::secp256k1_zkp::Message::from_slice(&sighash.to_byte_array()).unwrap();
+
+    let oracle_signature =
+        secp.sign_schnorr_no_aux_rand(&sighash_message, &secret_key.keypair(&secp));
+
+    collateral_txin.witness.push(oracle_signature.encode());
+    // Get outcome with Calc_ctv_hash script for a singular outcome.
+
+    let outcome = ScriptBuf::new(); // todo calculate corresponding script for oracle outcome
+    collateral_txin.witness.push(
+        builder
+            .control_block(&(outcome, LeafVersion::TapScript))
+            .expect("control block should work")
+            .serialize(),
+    );
+
+    Ok(Transaction {
+        lock_time: LockTime::ZERO,
+        version: 2,
+        input: vec![collateral_txin],
+        output: vec![output],
+    })
 }
 
 #[cfg(test)]

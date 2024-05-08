@@ -1,7 +1,7 @@
 use crate::op_cat::op_cat_dlc_payout;
 use bitcoin::hashes::Hash;
 use bitcoin::key::XOnlyPublicKey;
-use bitcoin::secp256k1::ThirtyTwoByteHash;
+use bitcoin::secp256k1::{Scalar, ThirtyTwoByteHash};
 use bitcoin::taproot::TaprootBuilder;
 use bitcoin::{Address, Network, ScriptBuf};
 use dlc::secp256k1_zkp::hashes::sha256;
@@ -101,4 +101,22 @@ pub fn create_nums_key() -> XOnlyPublicKey {
     let hash = sha256::Hash::hash(G.to_bytes_uncompressed().as_slice());
     let point: Point<EvenY, Public, NonZero> = Point::from_xonly_bytes(hash.into_32()).unwrap();
     XOnlyPublicKey::from_slice(point.to_xonly_bytes().as_slice()).unwrap()
+}
+
+pub fn signatures_to_secret(
+    signatures: &[Vec<dlc::secp256k1_zkp::schnorr::Signature>],
+) -> SecretKey {
+    let s_values = signatures
+        .iter()
+        .flatten()
+        .map(|x| dlc::secp_utils::schnorrsig_decompose(x).unwrap().1)
+        .collect::<Vec<&[u8]>>();
+    let secret = SecretKey::from_slice(s_values[0]).unwrap();
+
+    let result = s_values.iter().skip(1).fold(secret, |accum, s| {
+        let sec = SecretKey::from_slice(s).unwrap();
+        accum.add_tweak(&Scalar::from(sec)).unwrap()
+    });
+
+    result
 }
