@@ -46,7 +46,7 @@ pub(crate) fn create_ctv_spending_tx(
     output: TxOut,
     oracle_attestation: OracleAttestation,
     contract_descriptor: ContractDescriptor,
-    oracle_info: OracleInfo
+    oracle_info: OracleInfo,
 ) -> anyhow::Result<Transaction> {
     let secp = Secp256k1::new();
 
@@ -146,8 +146,8 @@ mod tests {
         )
         .unwrap();
         let attestation = create_dummy_announcement().1;
-        let spending_tx = create_ctv_spending_tx(outpoint, out, attestation).unwrap();
-
-        println!("{}", hex::encode(serialize(&spending_tx).to_vec()));
+        // let spending_tx = create_ctv_spending_tx(outpoint, out, attestation).unwrap();
+        //
+        // println!("{}", hex::encode(serialize(&spending_tx).to_vec()));
     }
 }

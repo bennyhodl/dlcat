@@ -3,7 +3,7 @@ use bitcoin::hashes::Hash;
 use bitcoin::key::XOnlyPublicKey;
 use bitcoin::secp256k1::{Scalar, ThirtyTwoByteHash};
 use bitcoin::taproot::TaprootBuilder;
-use bitcoin::{Address, Network, ScriptBuf};
+use bitcoin::{Address, Network, ScriptBuf, TxOut};
 use dlc::secp256k1_zkp::hashes::sha256;
 use dlc::secp256k1_zkp::rand::rngs::OsRng;
 use dlc::secp256k1_zkp::{KeyPair, Message, Secp256k1, SecretKey};
@@ -84,7 +84,11 @@ pub fn one_bit_contract_descriptor() -> ContractDescriptor {
 }
 
 pub fn create_address(payout_spk: ScriptBuf, amount: u64) -> Address {
-    let enforce_payout_spk = op_cat_dlc_payout(&payout_spk, amount - 10_000);
+    let out = TxOut {
+        script_pubkey: payout_spk,
+        value: amount - 10_000, // minus 10k sats for fees
+    };
+    let enforce_payout_spk = op_cat_dlc_payout(&[out]);
 
     let secp = Secp256k1::new();
     let builder = TaprootBuilder::new()
