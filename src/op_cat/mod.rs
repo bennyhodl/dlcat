@@ -3,12 +3,14 @@ use crate::build_cat_taproot_leafs;
 use crate::utils::create_nums_key;
 use bitcoin::absolute::LockTime;
 use bitcoin::consensus::Encodable;
+use bitcoin::hashes::{sha256, Hash};
 use bitcoin::key::Secp256k1;
 use bitcoin::opcodes::all::{
     OP_CAT, OP_CHECKSIG, OP_DUP, OP_EQUALVERIFY, OP_FROMALTSTACK, OP_ROT, OP_SHA256, OP_SWAP,
     OP_TOALTSTACK,
 };
 use bitcoin::script::{Builder, PushBytesBuf};
+use bitcoin::secp256k1::ThirtyTwoByteHash;
 use bitcoin::sighash::TapSighashType;
 use bitcoin::taproot::{LeafVersion, TapLeafHash, TaprootBuilder};
 use bitcoin::{OutPoint, Script, ScriptBuf, Transaction, TxIn, TxOut};
@@ -84,7 +86,7 @@ pub(crate) fn create_cat_spending_tx(
         ..Default::default()
     };
 
-    let enforce_payout_spk = op_cat_dlc_payout(&output.script_pubkey, output.value);
+    let enforce_payout_spk = op_cat_dlc_payout(&[output.clone()]);
 
     let leaf_hash = TapLeafHash::from_script(&enforce_payout_spk, LeafVersion::TapScript);
     let contract_components =
@@ -114,7 +116,6 @@ pub(crate) fn create_cat_spending_tx(
     let mangled_signature: [u8; 63] = computed_signature[0..63].try_into().unwrap(); // chop off the last byte, so we can provide the 0x00 and 0x01 bytes on the stack
     collateral_txin.witness.push(mangled_signature);
 
-
     // Build the taproot tree of outcomes
     let spend_info = build_cat_taproot_leafs(
         outcomes,
@@ -129,6 +130,10 @@ pub(crate) fn create_cat_spending_tx(
     //     .unwrap()
     //     .finalize(&secp, create_nums_key())
     //     .unwrap();
+
+    collateral_txin
+        .witness
+        .push(enforce_payout_spk.clone().to_bytes());
 
     collateral_txin.witness.push(
         spend_info
@@ -146,14 +151,18 @@ pub(crate) struct ContractComponents {
     pub(crate) signature_components: Vec<Vec<u8>>,
 }
 
-pub(crate) fn op_cat_dlc_payout(payout_spk: &ScriptBuf, amount: u64) -> ScriptBuf {
+pub(crate) fn op_cat_dlc_payout(outputs: &[TxOut]) -> ScriptBuf {
     let mut builder = Script::builder();
     // The witness program needs to have the signature components except the outputs and the pre_scriptpubkeys and pre_amounts,
     // followed by the output amount, then the script pubkey,
     // followed by the fee amount, then the fee-paying scriptpubkey
     // and finally the mangled signature
 
-    let payout_spk_bytes: PushBytesBuf = payout_spk.clone().into_bytes().try_into().unwrap();
+    let mut buffer = Vec::new();
+    for o in outputs {
+        o.consensus_encode(&mut buffer).unwrap();
+    }
+    let output_hash_bytes = sha256::Hash::hash(&buffer);
 
     builder = builder
         .push_opcode(OP_TOALTSTACK) // move pre-computed signature minus last byte to alt stack
@@ -162,10 +171,7 @@ pub(crate) fn op_cat_dlc_payout(payout_spk: &ScriptBuf, amount: u64) -> ScriptBu
         .push_opcode(OP_CAT) // encoded leaf hash
         .push_opcode(OP_CAT) // input index
         .push_opcode(OP_CAT) // spend type
-        .push_slice(amount.to_le_bytes())
-        .push_slice(payout_spk_bytes.as_push_bytes())
-        .push_opcode(OP_CAT) // cat the output amount and the second copy of the scriptpubkey
-        .push_opcode(OP_SHA256) // hash the output
+        .push_slice(output_hash_bytes.into_32())
         .push_opcode(OP_SWAP) // move the hashed encoded outputs below our working sigmsg
         .push_opcode(OP_CAT) // outputs
         .push_opcode(OP_CAT) // prev sequences
@@ -219,4 +225,41 @@ pub(crate) fn add_signature_construction_and_check(builder: Builder) -> Builder 
         .push_opcode(OP_CAT)
         .push_slice(*G_X) // push G again. TODO: DUP this from before and stick it in the alt stack or something
         .push_opcode(OP_CHECKSIG)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::{create_address, one_bit_contract_descriptor};
+    use bitcoin::consensus::serialize;
+    use bitcoin::Address;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_cat_create_address() {
+        let bitcoind_address =
+            Address::from_str("tb1qe65apqqe3zq7qzaw45zjr4d7fenqdymhr3gums").unwrap();
+
+        let contract_address = create_address(bitcoind_address.payload.script_pubkey(), 100_000);
+        println!("{}", contract_address);
+
+        let outpoint = OutPoint::from_str(
+            "2efc5d63872c24a2f1e2f67b7f89e2ba33e8d218242964e07fbaf210970225b1:1",
+        )
+        .unwrap();
+        let prev_output = TxOut {
+            script_pubkey: contract_address.payload.script_pubkey(),
+            value: 100_000,
+        };
+        let spending_tx = create_cat_spending_tx(
+            outpoint,
+            prev_output,
+            bitcoind_address.payload.script_pubkey(),
+            one_bit_contract_descriptor(),
+            &[],
+        )
+        .unwrap();
+
+        println!("{}", hex::encode(serialize(&spending_tx).to_vec()));
+    }
 }

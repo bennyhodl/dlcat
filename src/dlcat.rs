@@ -4,7 +4,7 @@ use bitcoin::opcodes::all::{OP_CHECKSIGVERIFY, OP_NOP4};
 use bitcoin::script::PushBytesBuf;
 use bitcoin::{
     taproot::{TaprootBuilder, TaprootSpendInfo},
-    ScriptBuf,
+    ScriptBuf, TxOut,
 };
 use dlc::get_adaptor_point_from_oracle_info;
 use dlc::secp256k1_zkp::{Message, Secp256k1, XOnlyPublicKey};
@@ -29,7 +29,11 @@ pub fn build_cat_taproot_leafs(
                 let msg = Message::from_hashed_data::<dlc::secp256k1_zkp::hashes::sha256::Hash>(
                     payout.outcome.as_bytes(),
                 );
-                let cat_script = op_cat_dlc_payout(&script_pubkey, payout.offer_payout);
+                let output = TxOut {
+                    script_pubkey: script_pubkey.clone(),
+                    value: payout.offer_payout,
+                };
+                let cat_script = op_cat_dlc_payout(&[output]);
                 builder = builder.add_leaf(depth, cat_script).unwrap();
             }
         }
