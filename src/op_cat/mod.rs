@@ -117,19 +117,19 @@ pub(crate) fn create_cat_spending_tx(
     collateral_txin.witness.push(mangled_signature);
 
     // Build the taproot tree of outcomes
-    let spend_info = build_cat_taproot_leafs(
-        outcomes,
-        output.script_pubkey.clone(),
-        create_nums_key(),
-        oracle_infos,
-    ); // todo use this later, for now no DLC part
+    // let spend_info = build_cat_taproot_leafs(
+    //     outcomes,
+    //     output.script_pubkey.clone(),
+    //     create_nums_key(),
+    //     oracle_infos,
+    // ); // todo use this later, for now no DLC part
 
-    // let secp = Secp256k1::new();
-    // let builder = TaprootBuilder::new()
-    //     .add_leaf(0, enforce_payout_spk.clone())
-    //     .unwrap()
-    //     .finalize(&secp, create_nums_key())
-    //     .unwrap();
+    let secp = Secp256k1::new();
+    let spend_info = TaprootBuilder::new()
+        .add_leaf(0, enforce_payout_spk.clone())
+        .unwrap()
+        .finalize(&secp, create_nums_key())
+        .unwrap();
 
     collateral_txin
         .witness

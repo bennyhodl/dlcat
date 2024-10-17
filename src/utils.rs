@@ -88,7 +88,7 @@ pub fn create_address(payout_spk: ScriptBuf, amount: u64) -> Address {
         script_pubkey: payout_spk,
         value: amount - 10_000, // minus 10k sats for fees
     };
-    let enforce_payout_spk = op_cat_dlc_payout(&[out]);
+    let enforce_payout_spk = op_cat_dlc_payout(&[out.clone()]);
 
     let secp = Secp256k1::new();
     let builder = TaprootBuilder::new()
