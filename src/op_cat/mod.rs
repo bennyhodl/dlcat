@@ -1,4 +1,5 @@
 pub mod sigops;
+
 use crate::build_cat_taproot_leafs;
 use crate::utils::create_nums_key;
 use bitcoin::absolute::LockTime;
@@ -238,17 +239,25 @@ mod tests {
     #[test]
     fn test_cat_create_address() {
         let bitcoind_address =
-            Address::from_str("tb1qe65apqqe3zq7qzaw45zjr4d7fenqdymhr3gums").unwrap();
+            Address::from_str("tb1q6d6xxuws655ja5cvpe94x3fuksrnck8ugky550").unwrap();
 
         let contract_address = create_address(bitcoind_address.payload.script_pubkey(), 100_000);
-        println!("{}", contract_address);
+        println!("addr: {}", contract_address);
+        println!(
+            "output key: {}",
+            contract_address.script_pubkey().to_hex_string()
+        );
 
         let outpoint = OutPoint::from_str(
-            "2efc5d63872c24a2f1e2f67b7f89e2ba33e8d218242964e07fbaf210970225b1:1",
+            "f677bc24d139e030344cd8846580e7fbc7ca8b64a30c3e927ef7cf77e82c5913:1",
+        )
+        .unwrap();
+        let prev_spk = ScriptBuf::from_hex(
+            "5120c25dfe78d11bab4c85b9738cd0757776a67fcf5b75c8134cb5be4adf991c99be",
         )
         .unwrap();
         let prev_output = TxOut {
-            script_pubkey: contract_address.payload.script_pubkey(),
+            script_pubkey: prev_spk,
             value: 100_000,
         };
         let spending_tx = create_cat_spending_tx(
